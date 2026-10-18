@@ -897,7 +897,10 @@ class NewHarnessFormState extends State<NewHarnessForm> {
 
   bool _checkingLaunch = false;
 
-  Future<void> _start() async {
+  /// [existingFolder]: "Use the existing folder" was pressed, so the harness
+  /// starts in the folder the typed project name found
+  /// ([NewHarnessController.useExistingFolder]).
+  Future<void> _start({bool existingFolder = false}) async {
     if (box.busy) return;
     _restoreChoiceFocus = false;
     if (box.requiredChoice case final choice?) {
@@ -909,7 +912,9 @@ class NewHarnessFormState extends State<NewHarnessForm> {
       return;
     }
     _checkingLaunch = box.checking;
-    final outcome = await box.create();
+    final outcome = existingFolder
+        ? await box.useExistingFolder()
+        : await box.create();
     if (!mounted) return;
     switch (outcome) {
       case NewHarnessOutcome.created:
@@ -2186,11 +2191,20 @@ class NewHarnessFormState extends State<NewHarnessForm> {
     child: const Text('Cancel request'),
   );
 
+  /// Offered beside the refusal of a typed project name whose folder is
+  /// already there: starts in that folder, only once pressed.
+  Widget _useExistingFolderButton() => TextButton(
+    key: const ValueKey('use-existing-folder'),
+    onPressed: box.busy ? null : () => unawaited(_start(existingFolder: true)),
+    child: const Text('Use the existing folder'),
+  );
+
   Widget _desktopLaunchActions() => Wrap(
     spacing: 8,
     crossAxisAlignment: WrapCrossAlignment.center,
     children: [
       if (box.canCancelPending) _cancelPendingButton(),
+      if (box.existingFolder != null) _useExistingFolderButton(),
       _desktopStartButton(),
     ],
   );
@@ -2960,6 +2974,7 @@ class NewHarnessFormState extends State<NewHarnessForm> {
               ),
             _buildButton(),
             if (box.canCancelPending) _cancelPendingButton(),
+            if (box.existingFolder != null) _useExistingFolderButton(),
             if (!_picking && box.requiredChoice != null) ...[
               SizedBox(height: _rowHeight),
               Padding(
